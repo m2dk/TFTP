@@ -52,17 +52,20 @@ handleRRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 	sock = Socket(AF_INET, SOCK_DGRAM, protocol->p_proto);
 
 	timelim.tv_sec = TIMEOUT;
+	/* this is needed in some Linux kernels, for some reason */
+	timelim.tv_usec = 0; 
 
 	(void)Setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timelim, sizeof(timelim));
 
 	filename = msg.rrq.filemode;
-	mode = &msg.rrq.filemode[strlen(filename+2)]; /* ignored, if I get motivated I'll handle netascii */
-
+	mode = &msg.rrq.filemode[strlen(filename)+1]; /* ignored, if I get motivated I'll handle netascii */
 
 	fd = Open(filename, O_RDONLY);
-	blknum = 0;
+	blknum = 1;
+	datlen = 1;
 
-	while((datlen = Read(fd, data, MAX_DATA_PACKET_SIZE))) {
+	while(datlen) {
+		datlen = Read(fd, data, MAX_DATA_PACKET_SIZE); /* ugly workaround to send 0-length packets */
 		for(i = 0; i < RETRIES; i++) {
 			datasend = make_data(blknum, data, datlen);
 			send_packt(sock, &datasend, datlen+4, client, *socklen);
@@ -82,7 +85,7 @@ handleRRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 		}
 
 		if(i == RETRIES) {
-			fprintf(stderr, "%s.%u: failed to send block %d.\n",
+			fprintf(stderr, "%s.%u: failed to send block %d\n",
 				inet_ntoa(client->sin_addr), ntohs(client->sin_port), blknum);
 			exit(EXIT_FAILURE);
 		}
@@ -93,11 +96,35 @@ handleRRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 	(void)Close(fd);
 }
 
-static void *
-handleWRQ(void *args)
+void
+handleWRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 {
-	PACKT *msg = args;
+	int sock, fd;
+	uint8_t data[MAX_DATA_PACKET_SIZE];
+	uint16_t blknum;
+	size_t datlen, i;
 
+	struct protoent *protocol;
+	struct timeval timelim;
+
+	char *filename, *mode;
+	PACKT datasend, response;
+
+	protocol = Getprotobyname("udp");
+	sock = Socket(AF_INET, SOCK_DGRAM, protocol->p_proto);
+
+	timelim.tv_sec = TIMEOUT;
+	/* this is needed in some Linux kernels, for some reason */
+	timelim.tv_usec = 0; 
+
+	(void)Setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timelim, sizeof(timelim));
+
+	filename = msg.rrq.filemode;
+	mode = &msg.rrq.filemode[strlen(filename)+1]; /* ignored, if I get motivated I'll handle netascii */
+
+	fd = Open(filename, O_WRONLY);
+	blknum = 1;
+	datlen = 1;
 }
 
 int
