@@ -102,13 +102,13 @@ handleWRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 	int sock, fd;
 	uint8_t data[MAX_DATA_PACKET_SIZE];
 	uint16_t blknum;
-	size_t datlen, i;
+	ssize_t datlen, i;
 
 	struct protoent *protocol;
 	struct timeval timelim;
 
 	char *filename, *mode;
-	PACKT datasend, response;
+	PACKT ack, response;
 
 	protocol = Getprotobyname("udp");
 	sock = Socket(AF_INET, SOCK_DGRAM, protocol->p_proto);
@@ -119,12 +119,40 @@ handleWRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 
 	(void)Setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timelim, sizeof(timelim));
 
-	filename = msg.rrq.filemode;
-	mode = &msg.rrq.filemode[strlen(filename)+1]; /* ignored, if I get motivated I'll handle netascii */
+	filename = msg.wrq.filemode;
+	mode = &msg.wrq.filemode[strlen(filename)+1]; /* ignored, if I get motivated I'll handle netascii */
 
 	fd = Open(filename, O_WRONLY);
-	blknum = 1;
-	datlen = 1;
+	blknum = 0;
+
+
+	do {
+		ack = make_ack(blknum);
+
+		for(i = 0; i < RETRIES, i++) {
+			(void)send_packt(sock, &ack, 4, client, *socklen);
+			datlen = recv_packt(sock, &response, client, socklen);
+			if(ntohs(response.opcode) != OP_DATA) {
+				fprintf(stderr, "%s.%u: received packet with opcode %d.\n",
+					inet_ntoa(client->sin_addr), ntohs(client->sin_port),
+					ntohs(response.opcode));
+				continue;
+			} else {
+				break;
+			}
+		}
+
+		if(i == RETRIES) {
+			fprintf(stderr, "%s.%u: failed to send ack 0\n",
+				inet_ntoa(client->sin_addr), ntohs(client->sin_port));
+			exit(EXIT_FAILURE);
+		}
+		
+		Write(fd, response.data.datablk, datlen-4);
+		blknum++;
+	} while((datlen = recv_packt(sock, &response, client, socklen)) < MAX_DATA_PACKET_SIZEA;)
+
+	(void)Close(fd);
 }
 
 int
@@ -183,7 +211,12 @@ main(int argc, char **argv)
 			}
 			break;
 		case OP_WRQ:
-			/* algo 2 */
+			fprintf(stderr, "%s.%u: received request type WRQ, filename = %s\n",
+				inet_ntoa(client.sin_addr), ntohs(client.sin_port), msg.wrq.filemode);
+			if(!fork()) {
+				handleWRQ(msg, &client, &socklen);
+				exit(EXIT_SUCCESS);
+			}
 			break;
 		default:
 			fprintf(stderr, "%s.%u: received opcode %hd.\n", inet_ntoa(client.sin_addr),
