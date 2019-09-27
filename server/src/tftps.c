@@ -129,7 +129,7 @@ handleWRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 	do {
 		ack = make_ack(blknum);
 
-		for(i = 0; i < RETRIES, i++) {
+		for(i = 0; i < RETRIES; i++) {
 			(void)send_packt(sock, &ack, 4, client, *socklen);
 			datlen = recv_packt(sock, &response, client, socklen);
 			if(ntohs(response.opcode) != OP_DATA) {
@@ -150,7 +150,7 @@ handleWRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 		
 		Write(fd, response.data.datablk, datlen-4);
 		blknum++;
-	} while((datlen = recv_packt(sock, &response, client, socklen)) < MAX_DATA_PACKET_SIZEA;)
+	} while((datlen = recv_packt(sock, &response, client, socklen)) < MAX_DATA_PACKET_SIZE);
 
 	(void)Close(fd);
 }
