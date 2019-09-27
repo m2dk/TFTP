@@ -1,1 +1,1 @@
-docopt
+docopt,pip,python3, servidor TFTP.
