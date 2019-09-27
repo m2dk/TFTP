@@ -2,6 +2,7 @@
 #include <grp.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,19 +20,8 @@
 void 
 drop_privilege(void)
 {
-	gid_t newgid = getgid(), oldgid = getegid();
-	uid_t newuid = getuid(), olduid = geteuid();
-	if (!olduid) setgroups(1, &newgid);
-
-	if (newgid != oldgid) {
-		setegid(newgid);
-		if (setgid(newgid) == -1) abort();
-	}
-
-	if (newuid != olduid) {
-		seteuid(newuid);
-		if (setuid(newuid) == -1) abort();
-	}
+	setgid(strtoll(getenv("SUDO_GID"), NULL, 10));
+	setuid(strtoll(getenv("SUDO_UID"), NULL, 10));
 }
 
 void
@@ -78,9 +68,10 @@ handleRRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 			} else if(ntohs(response.ack.blk) == blknum){
 				break;
 			} else {
-				fprintf(stderr, "%s.%u: received ack for wrong blknum %d\n",
+				fprintf(stderr, "%s.%u: received ack for wrong blknum %d, expecting %d\n",
 					inet_ntoa(client->sin_addr), ntohs(client->sin_port),
-					ntohs(response.ack.blk));
+					ntohs(response.ack.blk), blknum);
+				continue;
 			}
 		}
 
@@ -123,6 +114,7 @@ handleWRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 	mode = &msg.wrq.filemode[strlen(filename)+1]; /* ignored, if I get motivated I'll handle netascii */
 
 	fd = Open(filename, O_WRONLY | O_CREAT);
+	fchmod(fd, 0644);
 	blknum = 0;
 
 	do {
@@ -167,7 +159,7 @@ main(int argc, char **argv)
 	struct sockaddr_in sock_str;
 	int sock;
 
-	if(argc < 2 || argc > 2) {
+	if(argc != 2) {
 		fprintf(stderr, "Usage:\n\t%s [directory]\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
@@ -184,7 +176,7 @@ main(int argc, char **argv)
 
 	(void)Bind(sock, (struct sockaddr *)&sock_str, sizeof(sock_str));
 
-	printf("port: %d, protocol: %s\n", ntohs(service->s_port), protocol->p_name);
+	printf("Server listening on port: %d.\n", ntohs(service->s_port));
 
 	drop_privilege();
 
@@ -227,6 +219,7 @@ main(int argc, char **argv)
 				ntohs(client.sin_port), opcode);
 			continue;
 		}
+		signal(SIGCHLD, SIG_IGN); /* prevent zombie process */
 	}
 
 	exit(EXIT_SUCCESS);

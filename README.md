@@ -1,17 +1,34 @@
 # TFTP
-A Simple implementation of a TFTP server in C and a client in Python. The client includes:
+Simple implementation of a TFTP server in C and a TFTP client in Python. The client includes:
 
-* Get ~ Command that led you download files from the server.
-* Put ~ Command that led you upload files to the server.
+* Get ~ Command that lets you download files from the server.
+* Put ~ Command that lets you upload files to the server.
 
 ## Dependencies
 * Python ~ docopt 0.6.2
 
-##Usage
+## Usage
 * Server
-Compile the server with the makefile provided
-execute with `./tftp ./<directory>`
+
+Compile and execute the server:
+
+```
+cd server
+make
+sudo ./tftps [directory]
+```
   
 * Client
-Just run `./Cliente_Tftp.py` in your terminal with `<get|put> <filename> --server=<server IP> --port=<69 by default>`.
-you can also run `./Cliente_Tftp.py` in your terminal with `h` to get aditional help.
+Run
+
+```
+python3 tftpc.py <get|put> <ip_addr>
+```
+
+You can also run
+
+```
+python3 tftpc.py -h
+```
+
+for more information about usage.

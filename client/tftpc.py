@@ -1,8 +1,10 @@
-"""Cliente_Tftp.
+#!/usr/bin/env python3
+
+"""Cliente tftp.
 Usage:
-  Cliente_Tftp.py get <filename> <ip> --port=<puerto> [[-s|-b ] --mode=<mode>]
-  Cliente_Tftp.py put <filename> <ip> --port=<puerto> [--mode=<mode>]
-  Cliente_Tftp.py (-h | --help)
+  tftpc.py get <filename> <ip> --port=<puerto> [[-s|-b ] --mode=<mode>]
+  tftpc.py put <filename> <ip> --port=<puerto> [--mode=<mode>]
+  tftpc.py (-h | --help)
 
 Options:
   -h --help     Show this screen.
@@ -132,7 +134,7 @@ def main():
         if arguments ['--mode'] is not None:
             mode = arguments['--mode']
             if mode.lower() not in TFTP_MODES.keys():
-                print("Unknown mode - defaulting to netascii")
+                print("Unknown mode - defaulting to octet")
                 mode = "octet"
         else:
             mode = "octet"#Octet por defecto
@@ -158,7 +160,7 @@ def main():
         if arguments ['--mode'] is not None:
             mode = arguments['--mode']
             if mode.lower() not in TFTP_MODES.keys():
-                print("Unknown mode - defaulting to netascii")
+                print("Unknown mode - defaulting to octet")
                 mode = "octet"
         else:
             mode = "octet"
