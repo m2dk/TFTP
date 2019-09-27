@@ -62,9 +62,9 @@ handleRRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 
 	fd = Open(filename, O_RDONLY);
 	blknum = 1;
-	datlen = 1;
+	datlen = MAX_DATA_PACKET_SIZE;
 
-	while(datlen) {
+	while(datlen == MAX_DATA_PACKET_SIZE) {
 		datlen = Read(fd, data, MAX_DATA_PACKET_SIZE); /* ugly workaround to send 0-length packets */
 		for(i = 0; i < RETRIES; i++) {
 			datasend = make_data(blknum, data, datlen);
@@ -122,35 +122,39 @@ handleWRQ(PACKT msg, struct sockaddr_in *client, socklen_t *socklen)
 	filename = msg.wrq.filemode;
 	mode = &msg.wrq.filemode[strlen(filename)+1]; /* ignored, if I get motivated I'll handle netascii */
 
-	fd = Open(filename, O_WRONLY);
+	fd = Open(filename, O_WRONLY | O_CREAT);
 	blknum = 0;
-
 
 	do {
 		ack = make_ack(blknum);
-
+		
 		for(i = 0; i < RETRIES; i++) {
 			(void)send_packt(sock, &ack, 4, client, *socklen);
+
 			datlen = recv_packt(sock, &response, client, socklen);
 			if(ntohs(response.opcode) != OP_DATA) {
-				fprintf(stderr, "%s.%u: received packet with opcode %d.\n",
+				fprintf(stderr, "%s.%u: received packet with opcode %d\n",
 					inet_ntoa(client->sin_addr), ntohs(client->sin_port),
 					ntohs(response.opcode));
-				continue;
+				exit(EXIT_FAILURE);
 			} else {
 				break;
 			}
 		}
 
 		if(i == RETRIES) {
-			fprintf(stderr, "%s.%u: failed to send ack 0\n",
-				inet_ntoa(client->sin_addr), ntohs(client->sin_port));
+			fprintf(stderr, "%s.%u: failed to receive block %d\n",
+				inet_ntoa(client->sin_addr), ntohs(client->sin_port),
+				blknum+1);
 			exit(EXIT_FAILURE);
 		}
-		
+
+		blknum = ntohs(response.data.blkn);
 		Write(fd, response.data.datablk, datlen-4);
-		blknum++;
-	} while((datlen = recv_packt(sock, &response, client, socklen)) < MAX_DATA_PACKET_SIZE);
+	} while(datlen-4 == MAX_DATA_PACKET_SIZE);
+
+	ack = make_ack(blknum); /* ugly workaround to send last ack */
+	(void)send_packt(sock, &ack, 4, client, *socklen);
 
 	(void)Close(fd);
 }
