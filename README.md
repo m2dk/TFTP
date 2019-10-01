@@ -1,5 +1,5 @@
 # TFTP
-Simple implementation of a TFTP server in C and a TFTP client in Python. The client includes:
+Simple implementation of a TFTP server (RFC1350) in C and a TFTP client in Python. The client includes:
 
 * Get ~ Command that lets you download files from the server.
 * Put ~ Command that lets you upload files to the server.
@@ -30,5 +30,5 @@ You can also run
 ```
 python3 tftpc.py -h
 ```
-
+This version of TFTP only send files <31.9Mb.
 for more information about usage.
